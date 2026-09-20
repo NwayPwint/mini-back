@@ -1,0 +1,1 @@
+{"version":3,"file":"notificationValidator.d.ts","sourceRoot":"","sources":["../../src/validators/notificationValidator.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,CAAC,EAAE,MAAM,KAAK,CAAC;AAExB,eAAO,MAAM,uBAAuB;;;;;iBAKlC,CAAC;AAEH,MAAM,MAAM,sBAAsB,GAAG,CAAC,CAAC,KAAK,CAAC,OAAO,uBAAuB,CAAC,CAAC"}

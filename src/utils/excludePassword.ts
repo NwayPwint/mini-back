@@ -1,6 +1,4 @@
-export const excludePassword = <T extends { password?: any }>(
-  user: T,
-): Omit<T, "password"> => {
-  const { password: _, ...userWithoutPassword } = user;
-  return userWithoutPassword;
+export const excludePassword = <T extends Record<string, any>>(user: T) => {
+  const { password, passwordResetToken, passwordResetExpires, ...rest } = user;
+  return rest;
 };

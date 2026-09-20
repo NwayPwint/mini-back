@@ -1,0 +1,1 @@
+{"version":3,"file":"restrictTo.d.ts","sourceRoot":"","sources":["../../src/middlewares/restrictTo.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AACjD,OAAO,EAAE,IAAI,EAAE,MAAM,gBAAgB,CAAC;AAEtC,OAAO,EAAE,oBAAoB,EAAE,MAAM,kBAAkB,CAAC;AAExD,eAAO,MAAM,UAAU,oBAAqB,IAAI,EAAE,WACnC,oBAAoB,OAAO,QAAQ,QAAQ,YAAY,SAiBrE,CAAC"}

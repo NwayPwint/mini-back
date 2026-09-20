@@ -13,14 +13,190 @@ enum Role {
   ADMIN
 }
 
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum NotificationType {
+  COURSE_REMINDER
+  CERTIFICATE
+  ANNOUNCEMENT
+  WEEKLY_DIGEST
+}
+
 model User {
-  id                    String   @id @default(uuid())
-  email                 String   @unique
-  password              String
-  name                  String?
-  role                  Role @default(STUDENT)
-  passwordResetToken    String?
-  passwordResetExpires  DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  name              String?
+  phone             String?
+  address           String?
+  bio               String?
+  weeklyTargetHours Int      @default(5)
+  role              Role     @default(STUDENT)
+
+  enrollments            Enrollment[]
+  courses                Course[]
+  certificates           Certificate[]
+  savedCourses           SavedCourse[]
+  lessonProgress         LessonProgress[]
+  
+  notificationPreference NotificationPreference?
+  notifications          Notification[]
+
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  passwordChangedAt    DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model Course {
+  id              String      @id @default(uuid())
+  title           String
+  slug            String      @unique
+  description     String?     @db.Text
+  instructorName  String
+  level           CourseLevel @default(BEGINNER)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  lessonsCount    Int     @default(0)
+  durationMinutes Int     @default(0)
+  rating          Float   @default(0.0)
+  published       Boolean @default(false)
+
+  learningOutcomes String[] @default([])
+  modules CourseModule[]
+
+  enrollments  Enrollment[]
+  certificates Certificate[]
+  savedCourses SavedCourse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CourseModule {
+  id        String      @id @default(uuid())
+  title     String
+  order     Int         @default(0)
+  courseId  String
+  course    Course      @relation(fields: [courseId], references:[id], onDelete: Cascade)
+
+  lessons     Lesson[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Lesson {
+  id      String      @id @default(uuid())
+  title   String
+  durationMinutes     Int
+  videoUrl      String? 
+  isFreePreview   Boolean   @default(false)
+  order           Int       @default(0)
+
+  moduleId        String
+  module        CourseModule  @relation(fields: [moduleId], references:[id], onDelete: Cascade)
+
+  progress      LessonProgress[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model LessonProgress {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId],references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  isCompleted Boolean  @default(false)
+  completedAt  DateTime?
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  @@unique([userId,lessonId])
+}
+
+model Enrollment {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  progress Float            @default(0.0)
+  status   EnrollmentStatus @default(ACTIVE)
+
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, courseId])
+}
+
+model SavedCourse {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+}
+
+model Certificate {
+  id           String   @id @default(uuid())
+  credentialId String   @unique @default(uuid())
+  grade        String?
+  issuedAt     DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model NotificationPreference {
+  id                String  @id @default(uuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weeklyDigest      Boolean @default(true)
+  courseReminders   Boolean @default(true)
+  announcements     Boolean @default(false)
+  certificateAlerts Boolean @default(true)
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String?
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
