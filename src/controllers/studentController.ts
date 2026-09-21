@@ -3,11 +3,13 @@ import { AppError } from "../utils/appError";
 
 import {
   getCertificatesService,
+  getCourseClassroomService,
   getMyCoursesService,
   getSavedCoursesService,
   getStudentDashboardService,
   saveCourseService,
   unsaveCourseService,
+  updateLessonProgressService,
 } from "../services/studentService";
 import { catchAsync } from "../utils/catchAsync";
 import { AuthenticatedRequest } from "../middlewares/authMiddleware";
@@ -95,5 +97,47 @@ export const unsaveCourse = catchAsync(
       message: "Course removed from saved",
       data: null,
     });
+  },
+);
+
+export const getCourseClassroom = catchAsync(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("Unauthorized access", 401);
+    }
+
+    const { slug } = req.params;
+
+    const classroomData = await getCourseClassroomService(
+      slug as string,
+      userId,
+    );
+    sendResponse(res, 200, "Fetch course classoom successfully", classroomData);
+  },
+);
+
+export const updateLessonProgress = catchAsync(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("Unauthorized access", 404);
+    }
+
+    const { lessonId } = req.params;
+    const { watchedSec, isCompleted } = req.body;
+
+    if (typeof watchedSec !== "number" || watchedSec < 0) {
+      throw new AppError("A valid watchedSec (number >=0) is required", 400);
+    }
+
+    const result = await updateLessonProgressService(
+      userId,
+      lessonId as string,
+      watchedSec,
+      isCompleted,
+    );
+
+    sendResponse(res, 200, "Lesson progress updated successfully", result);
   },
 );

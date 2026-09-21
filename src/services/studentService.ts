@@ -1,6 +1,8 @@
 import { EnrollmentStatus } from "@prisma/client";
 import prisma from "../config/prisma";
 import { AppError } from "../utils/appError";
+import en from "zod/v4/locales/en.js";
+import { watch } from "node:fs";
 
 interface GetMyCoursesParams {
   userId: string;
@@ -283,9 +285,207 @@ export const unsaveCourseService = async (userId: string, courseId: string) => {
   return null;
 };
 
-export const getCourseClassroomService = async (slug: string) => {
-  const course = await prisma.course.findFirst({ where: { slug } });
-  if (!course) {
+export const getCourseClassroomService = async (
+  slug: string,
+  userId: string,
+) => {
+  const course = await prisma.course.findFirst({
+    where: { slug },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      description: true,
+      instructorName: true,
+      published: true,
+      modules: {
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          title: true,
+          order: true,
+          lessons: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              title: true,
+              durationMinutes: true,
+              videoUrl: true,
+              isFreePreview: true,
+              order: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!course || !course.published) {
     throw new AppError("Course not found", 404);
   }
+
+  const enrollment = await prisma.enrollment.findUnique({
+    where: {
+      userId_courseId: {
+        userId,
+        courseId: course.id,
+      },
+    },
+  });
+
+  if (!enrollment || enrollment.status === EnrollmentStatus.CANCELLED) {
+    throw new AppError("You are not enrolled in this course", 403);
+  }
+
+  const userProgressList = await prisma.lessonProgress.findMany({
+    where: { userId },
+    select: {
+      lessonId: true,
+      isCompleted: true,
+      watchedSec: true,
+    },
+  });
+
+  const progressMap = new Map(
+    userProgressList.map((item) => [
+      item.lessonId,
+      { isCompleted: item.isCompleted, watchedSec: item.watchedSec },
+    ]),
+  );
+
+  const modulesWithProgress = course.modules.map((module) => ({
+    ...module,
+    lessons: module.lessons.map((lesson) => {
+      const progress = progressMap.get(lesson.id);
+      return {
+        ...lesson,
+        isCompleted: progress?.isCompleted ?? false,
+        watchedSec: progress?.watchedSec ?? 0,
+      };
+    }),
+  }));
+
+  return {
+    course: {
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      instructorName: course.instructorName,
+      modules: modulesWithProgress,
+    },
+    enrollment: {
+      id: enrollment.id,
+      progress: enrollment.progress,
+      status: enrollment.status,
+    },
+  };
+};
+
+export const updateLessonProgressService = async (
+  userId: string,
+  lessonId: string,
+  watchedSec: number,
+  isCompleted?: boolean,
+) => {
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: {
+      id: true,
+      durationMinutes: true,
+      module: {
+        select: {
+          courseId: true,
+        },
+      },
+    },
+  });
+
+  if (!lesson) {
+    throw new AppError("Lesson not found", 404);
+  }
+
+  const courseId = lesson.module.courseId;
+
+  const enrollment = await prisma.enrollment.findUnique({
+    where: {
+      userId_courseId: {
+        userId,
+        courseId,
+      },
+    },
+  });
+
+  if (!enrollment) {
+    throw new AppError("You are not enrolled in this course", 403);
+  }
+
+  const totalLessonSec = (lesson.durationMinutes || 0) * 60;
+  const validWatchedSec =
+    totalLessonSec > 0 ? Math.min(watchedSec, totalLessonSec) : watchedSec;
+
+  let completedStatus = isCompleted;
+  if (completedStatus === undefined) {
+    completedStatus =
+      totalLessonSec > 0 && validWatchedSec >= totalLessonSec * 0.9;
+  }
+
+  const existingProgress = await prisma.lessonProgress.findUnique({
+    where: {
+      userId_lessonId: { userId, lessonId },
+    },
+  });
+
+  const finalIsCompleted = existingProgress?.isCompleted || completedStatus;
+
+  await prisma.lessonProgress.upsert({
+    where: {
+      userId_lessonId: { userId, lessonId },
+    },
+    update: {
+      watchedSec: validWatchedSec,
+      isCompleted: finalIsCompleted,
+      completedAt: finalIsCompleted
+        ? existingProgress?.completedAt || new Date()
+        : null,
+    },
+    create: {
+      userId,
+      lessonId,
+      watchedSec: validWatchedSec,
+      isCompleted: finalIsCompleted,
+      completedAt: finalIsCompleted ? new Date() : null,
+    },
+  });
+
+  const totalLessons = await prisma.lesson.count({
+    where: { module: { courseId } },
+  });
+
+  const completedLessons = await prisma.lessonProgress.count({
+    where: {
+      userId,
+      isCompleted: true,
+      lesson: { module: { courseId } },
+    },
+  });
+
+  const updatedProgressPercentage =
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+  const updatedEnrollment = await prisma.enrollment.update({
+    where: { id: enrollment.id },
+    data: {
+      progress: updatedProgressPercentage,
+      status: updatedProgressPercentage === 100 ? "COMPLETED" : "ACTIVE",
+    },
+  });
+
+  return {
+    lessonId,
+    watchedSec: validWatchedSec,
+    isCompleted: finalIsCompleted,
+    courseProgress: updatedEnrollment.progress,
+    enrollmentStatus: updatedEnrollment.status,
+  };
 };
