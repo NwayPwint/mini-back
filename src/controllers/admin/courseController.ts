@@ -2,7 +2,11 @@ import { Response } from "express";
 import { AuthenticatedRequest } from "../../middlewares/authMiddleware";
 import {
   createCourseService,
-  getCourseService,
+  deleteCourseService,
+  getCoursesService,
+  getCourseBySlugService,
+  togglePublishService,
+  updateCourseService,
 } from "../../services/admin/courseService";
 import { AppError } from "../../utils/appError";
 import { sendResponse } from "../../utils/appResponse";
@@ -20,8 +24,51 @@ export const getCourses = catchAsync(
     const page = Number(req.query.page) || PAGINATION.DEFAULT_PAGE;
     const limit = Number(req.query.limit) || PAGINATION.DEFAULT_LIMIT;
 
-    const courses = await getCourseService(page, limit);
+    const courses = await getCoursesService(page, limit);
     sendResponse(res, 200, "Courses fetch successfully", courses);
+  },
+);
+
+export const getCourseBySlug = catchAsync(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    const { slug } = req.params;
+    if (!user) {
+      throw new AppError("Unauthorized access", 401);
+    }
+
+    const course = await getCourseBySlugService(slug as string);
+    sendResponse(res, 200, "Course fetched successfully", course);
+  },
+);
+
+export const togglePublish = catchAsync(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    const { slug } = req.params;
+    if (!user) {
+      throw new AppError("Unauthorized access", 401);
+    }
+
+    const course = await togglePublishService(slug as string);
+    const statusMessage = course.published
+      ? "Course published successfully"
+      : "Course unpublished successfully";
+
+    sendResponse(res, 200, statusMessage, course);
+  },
+);
+
+export const updateCourse = catchAsync(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    const { slug } = req.params;
+    if (!user) {
+      throw new AppError("Unauthorized access", 401);
+    }
+
+    const updatedCourse = await updateCourseService(slug as string, req.body);
+    sendResponse(res, 200, "Course updated successfully", updatedCourse);
   },
 );
 
@@ -37,5 +84,18 @@ export const createCourse = catchAsync(
     const newCourse = await createCourseService(data, createdById);
 
     sendResponse(res, 201, "Course created successfully", newCourse);
+  },
+);
+
+export const deleteCourse = catchAsync(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    const { slug } = req.params;
+    if (!user) {
+      throw new AppError("Unauthorized access", 401);
+    }
+
+    const deletedCourse = await deleteCourseService(slug as string);
+    sendResponse(res, 200, "Course deleted sucessfully", deletedCourse);
   },
 );

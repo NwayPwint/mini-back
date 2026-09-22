@@ -3,7 +3,7 @@ import prisma from "../config/prisma";
 import { AppError } from "../utils/appError";
 
 export const getCourseBySlugService = async (slug: string, userId?: string) => {
-  const course = await prisma.course.findUnique({
+  const course = await prisma.course.findFirst({
     where: { slug },
     include: {
       modules: {
@@ -76,7 +76,7 @@ export const getCourseBySlugService = async (slug: string, userId?: string) => {
 };
 
 export const enrollInCourseService = async (slug: string, userId: string) => {
-  const course = await prisma.course.findUnique({ where: { slug } });
+  const course = await prisma.course.findFirst({ where: { slug } });
   if (!course) {
     throw new AppError("Course not found", 404);
   }
@@ -101,7 +101,7 @@ export const enrollInCourseService = async (slug: string, userId: string) => {
 };
 
 export const unenrollInCourseService = async (slug: string, userId: string) => {
-  const course = await prisma.course.findUnique({ where: { slug } });
+  const course = await prisma.course.findFirst({ where: { slug } });
   if (!course) {
     throw new AppError("Course not found", 404);
   }

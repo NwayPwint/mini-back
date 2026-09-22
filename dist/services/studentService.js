@@ -225,7 +225,7 @@ const getSavedCoursesService = async (userId) => {
 };
 exports.getSavedCoursesService = getSavedCoursesService;
 const saveCourseService = async (userId, courseId) => {
-    const course = await prisma_1.default.course.findUnique({ where: { id: courseId } });
+    const course = await prisma_1.default.course.findFirst({ where: { id: courseId } });
     if (!course || !course.published) {
         throw new appError_1.AppError("Course not found", 404);
     }

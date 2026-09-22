@@ -250,7 +250,7 @@ export const getSavedCoursesService = async (userId: string) => {
 };
 
 export const saveCourseService = async (userId: string, courseId: string) => {
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  const course = await prisma.course.findFirst({ where: { id: courseId } });
   if (!course || !course.published) {
     throw new AppError("Course not found", 404);
   }

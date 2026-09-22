@@ -49,7 +49,6 @@ export const unEnrollInCourse = catchAsync(
     sendResponse(res, 200, "Cancel enrollment successfully", result);
   },
 );
-
 export const updateProgress = catchAsync(
   async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
